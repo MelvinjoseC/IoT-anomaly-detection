@@ -124,8 +124,6 @@ python sensor_publisher.py
 ## 👤 Author
 
 **Melvin Chacko Jose**
-- GitHub: [github.com/YOUR_USERNAME](https://github.com)
-- LinkedIn: [linkedin.com/in/YOUR_PROFILE](https://linkedin.com)
 - Email: melvinjose025@gmail.com
 
 ---
