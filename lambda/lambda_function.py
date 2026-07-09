@@ -11,6 +11,7 @@ Author  : Melvin Chacko Jose
 """
 
 import json
+import os
 import boto3
 import logging
 from datetime import datetime
@@ -21,11 +22,14 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # ── AWS Clients ───────────────────────────────────
-dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
-sns      = boto3.client("sns",      region_name="us-east-1")
-table    = dynamodb.Table("SensorReadings")
+AWS_REGION     = os.environ.get("AWS_REGION", "us-east-1")
+DYNAMODB_TABLE = os.environ.get("DYNAMODB_TABLE", "SensorReadings")
+SNS_TOPIC_ARN  = os.environ.get("SNS_TOPIC_ARN", "arn:aws:sns:us-east-1:YOUR_ACCOUNT_ID:SensorAnomalyAlerts")
 
-SNS_TOPIC_ARN = "arn:aws:sns:us-east-1:YOUR_ACCOUNT_ID:SensorAnomalyAlerts"
+dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
+sns      = boto3.client("sns",      region_name=AWS_REGION)
+table    = dynamodb.Table(DYNAMODB_TABLE)
+
 
 # ── Anomaly Thresholds ────────────────────────────
 THRESHOLDS = {
