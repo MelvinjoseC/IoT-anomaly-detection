@@ -1,6 +1,10 @@
 # ☁️ AWS Setup Guide — IoT Anomaly Detection System
 
-Follow these steps in order. Takes about 30–40 minutes.
+> [!TIP]
+> **Prefer Automation?** You can automate this entire guide using the Terraform configuration files in the `terraform/` directory. See the `README.md` for quick start instructions.
+
+If you prefer to set up everything manually via the AWS Console, follow these steps in order. Takes about 30–40 minutes.
+
 
 ---
 

@@ -63,8 +63,19 @@ iot-anomaly-detection/
 │   ├── lambda_function.py     # Anomaly detection + SNS alerts
 │   └── requirements.txt
 │
+├── terraform/                 # Infrastructure as Code (IaC)
+│   ├── provider.tf            # AWS & Archive providers
+│   ├── variables.tf           # Configuration variables
+│   ├── dynamodb.tf            # SensorReadings DynamoDB Table
+│   ├── sns.tf                 # SNS Alert Topic & email sub
+│   ├── iam.tf                 # Least-privilege roles/policies
+│   ├── lambda.tf              # Lambda provisioning & code archiving
+│   ├── iot.tf                 # IoT Core Rule & Device Policy
+│   ├── monitoring.tf          # CloudWatch error alarm
+│   └── outputs.tf             # Output values (endpoint, ARNs)
+│
 ├── infrastructure/
-│   └── aws_setup_guide.md     # Step-by-step AWS setup
+│   └── aws_setup_guide.md     # Step-by-step manual setup
 │
 └── docs/
     └── architecture.md
@@ -100,24 +111,31 @@ Action    : Immediate inspection required
 
 ## 🚀 Quick Start
 
-### Step 1 — Set up AWS
+### Step 1 — Deploy AWS Infrastructure via Terraform (Recommended)
+You can deploy the entire AWS architecture (DynamoDB, SNS, IAM roles, Lambda function, IoT Core rules, policies, and CloudWatch alarms) in minutes:
+```bash
+cd terraform
+terraform init
+terraform apply -var="alert_email=your-email@example.com"
 ```
-Follow infrastructure/aws_setup_guide.md
-```
+*Note: Make sure your AWS CLI credentials are configured (`aws configure`).*
+
+Once deployed, copy the output parameters (`iot_endpoint`, `sns_topic_arn`, etc.) to update your `device-simulator/config.py`.
+
+*Alternatively, see [infrastructure/aws_setup_guide.md](file:///c:/Users/User/Desktop/IoT-anomaly-detection/infrastructure/aws_setup_guide.md) for manual AWS console setup.*
 
 ### Step 2 — Run Sensor Publisher
 ```bash
 cd device-simulator
 pip install -r requirements.txt
-# Add certs to device-simulator/certs/
-# Edit config.py
+# Add certs to device-simulator/certs/ (see Step 5 of manual setup)
+# Edit config.py (add endpoint and certificate names)
 python sensor_publisher.py
 ```
 
 ### Step 3 — Check Alerts
-- Email: Check subscribed email inbox
-- SMS: Check subscribed phone number
-- DynamoDB: See all readings with anomaly flags
+- **Email**: Confirm your subscription via the link sent to your alert email address and monitor incoming alert messages.
+- **DynamoDB**: Check the `SensorReadings` table to see sensor data along with `is_anomaly` flags.
 
 ---
 
