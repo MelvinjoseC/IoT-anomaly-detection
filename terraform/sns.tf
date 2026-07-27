@@ -1,5 +1,6 @@
 resource "aws_sns_topic" "sensor_anomaly_alerts" {
-  name = "SensorAnomalyAlerts"
+  name              = "SensorAnomalyAlerts"
+  kms_master_key_id = "alias/aws/sns"
 }
 
 resource "aws_sns_topic_subscription" "email_subscription" {
