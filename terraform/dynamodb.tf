@@ -18,6 +18,16 @@ resource "aws_dynamodb_table" "sensor_readings" {
     enabled = true
   }
 
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = null # Default AWS Managed KMS Key (aws/dynamodb)
+  }
+
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
+
   tags = {
     Name = "IoT-Sensor-Readings"
   }
