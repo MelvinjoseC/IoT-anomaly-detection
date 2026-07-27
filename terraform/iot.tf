@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 resource "aws_iot_topic_rule" "sensor_anomaly_rule" {
   name        = "SensorAnomalyRule"
   description = "Routes IoT sensor telemetry to Lambda for anomaly check"
@@ -26,8 +28,23 @@ resource "aws_iot_policy" "anomaly_device_policy" {
     Statement = [
       {
         Effect   = "Allow"
-        Action   = ["iot:Connect", "iot:Publish", "iot:Subscribe", "iot:Receive"]
-        Resource = ["*"]
+        Action   = ["iot:Connect"]
+        Resource = ["arn:aws:iot:${var.aws_region}:${data.aws_caller_identity.current.account_id}:client/${var.device_name}"]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["iot:Publish"]
+        Resource = ["arn:aws:iot:${var.aws_region}:${data.aws_caller_identity.current.account_id}:topic/sensors/environment"]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["iot:Subscribe"]
+        Resource = ["arn:aws:iot:${var.aws_region}:${data.aws_caller_identity.current.account_id}:topicfilter/sensors/environment"]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["iot:Receive"]
+        Resource = ["arn:aws:iot:${var.aws_region}:${data.aws_caller_identity.current.account_id}:topic/sensors/environment"]
       }
     ]
   })
