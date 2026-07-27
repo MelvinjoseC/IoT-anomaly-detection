@@ -22,15 +22,17 @@ resource "aws_iam_policy" "lambda_policy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      # CloudWatch Logs
+      # CloudWatch Logs (Restricted to specific log group)
       {
         Effect = "Allow"
         Action = [
-          "logs:CreateLogGroup",
           "logs:CreateLogStream",
           "logs:PutLogEvents"
         ]
-        Resource = "arn:aws:logs:*:*:*"
+        Resource = [
+          aws_cloudwatch_log_group.lambda_log_group.arn,
+          "${aws_cloudwatch_log_group.lambda_log_group.arn}:*"
+        ]
       },
       # DynamoDB Access (least-privilege)
       {
