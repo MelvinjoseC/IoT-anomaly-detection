@@ -25,10 +25,13 @@ provider "aws" {
   region = var.aws_region
 
   default_tags {
-    tags = {
-      Environment = var.environment
-      Project     = "IoT-Anomaly-Detection"
-      ManagedBy   = "Terraform"
-    }
+    tags = merge(
+      {
+        Environment = var.environment
+        Project     = "IoT-Anomaly-Detection"
+        ManagedBy   = "Terraform"
+      },
+      var.extra_tags
+    )
   }
 }

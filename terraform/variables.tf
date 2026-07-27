@@ -36,3 +36,9 @@ variable "alert_email" {
     error_message = "The alert_email variable must be a valid email address."
   }
 }
+
+variable "extra_tags" {
+  type        = map(string)
+  description = "Extra tags to add to all resources"
+  default     = {}
+}
