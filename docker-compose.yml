@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  device-simulator:
+    build:
+      context: ./device-simulator
+      dockerfile: Dockerfile
+    container_name: iot-device-simulator
+    environment:
+      - AWS_IOT_ENDPOINT=YOUR_ENDPOINT.iot.us-east-1.amazonaws.com
+      - AWS_REGION=us-east-1
+      - MQTT_TOPIC=sensors/environment
+      - DEVICE_NAME=RaspberryPi-Sensor-01
+      - SEND_INTERVAL=5
+      # Mount certificates dynamically to keep the Docker image secure and portable
+      - CERT_DIR=/app/certs
+    volumes:
+      - ./device-simulator/certs:/app/certs:ro
+    restart: unless-stopped
