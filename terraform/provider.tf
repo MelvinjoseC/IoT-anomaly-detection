@@ -10,6 +10,15 @@ terraform {
       version = "~> 2.4"
     }
   }
+
+  # Production S3 Backend with DynamoDB state locking configuration (example)
+  # backend "s3" {
+  #   bucket         = "iot-anomaly-detection-tfstate"
+  #   key            = "dev/terraform.tfstate"
+  #   region         = "us-east-1"
+  #   dynamodb_table = "iot-anomaly-detection-tflocks"
+  #   encrypt        = true
+  # }
 }
 
 provider "aws" {
