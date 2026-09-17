@@ -17,6 +17,13 @@ import logging
 from datetime import datetime, timezone
 from decimal import Decimal
 
+# Optional AWS X-Ray SDK integration
+try:
+    from aws_xray_sdk.core import patch_all
+    patch_all()
+except ImportError:
+    pass
+
 # ── Logging ───────────────────────────────────────
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)

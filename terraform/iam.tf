@@ -63,6 +63,15 @@ resource "aws_iam_policy" "lambda_policy" {
           "sqs:SendMessage"
         ]
         Resource = aws_sqs_queue.iot_dlq.arn
+      },
+      # AWS X-Ray Tracing Access
+      {
+        Effect = "Allow"
+        Action = [
+          "xray:PutTraceSegments",
+          "xray:PutTelemetryRecords"
+        ]
+        Resource = "*"
       }
     ]
   })

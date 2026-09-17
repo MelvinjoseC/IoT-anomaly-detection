@@ -31,6 +31,10 @@ resource "aws_lambda_function" "iot_anomaly_detector" {
     target_arn = aws_sqs_queue.iot_dlq.arn
   }
 
+  tracing_config {
+    mode = "Active"
+  }
+
   depends_on = [
     aws_iam_role_policy_attachment.lambda_attach
   ]
