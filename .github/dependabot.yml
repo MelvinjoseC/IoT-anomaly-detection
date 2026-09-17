@@ -1,0 +1,33 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "ci/cd"
+
+  - package-ecosystem: "pip"
+    directory: "/lambda"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "lambda"
+
+  - package-ecosystem: "pip"
+    directory: "/device-simulator"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "simulator"
+
+  - package-ecosystem: "docker"
+    directory: "/device-simulator"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
