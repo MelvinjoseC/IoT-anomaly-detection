@@ -32,3 +32,8 @@ output "sqs_dlq_url" {
   description = "The URL of the Dead-Letter SQS Queue for failed IoT processing"
 }
 
+output "cloudwatch_dashboard_name" {
+  value       = aws_cloudwatch_dashboard.iot_system_dashboard.dashboard_name
+  description = "Name of the centralized CloudWatch operations dashboard"
+}
+
