@@ -55,6 +55,14 @@ resource "aws_iam_policy" "lambda_policy" {
           "sns:Publish"
         ]
         Resource = aws_sns_topic.sensor_anomaly_alerts.arn
+      },
+      # SQS DLQ Access (least-privilege)
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage"
+        ]
+        Resource = aws_sqs_queue.iot_dlq.arn
       }
     ]
   })
@@ -63,4 +71,42 @@ resource "aws_iam_policy" "lambda_policy" {
 resource "aws_iam_role_policy_attachment" "lambda_attach" {
   role       = aws_iam_role.lambda_execution.name
   policy_arn = aws_iam_policy.lambda_policy.arn
+}
+
+resource "aws_iam_role" "iot_error_role" {
+  name = "iot-rule-error-sqs-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "iot.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "iot_error_policy" {
+  name        = "iot-rule-error-sqs-policy"
+  description = "Allows IoT rule error action to write to SQS DLQ"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["sqs:SendMessage"]
+        Resource = aws_sqs_queue.iot_dlq.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "iot_error_attach" {
+  role       = aws_iam_role.iot_error_role.name
+  policy_arn = aws_iam_policy.iot_error_policy.arn
 }

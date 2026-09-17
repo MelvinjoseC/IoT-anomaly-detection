@@ -27,6 +27,10 @@ resource "aws_lambda_function" "iot_anomaly_detector" {
     }
   }
 
+  dead_letter_config {
+    target_arn = aws_sqs_queue.iot_dlq.arn
+  }
+
   depends_on = [
     aws_iam_role_policy_attachment.lambda_attach
   ]

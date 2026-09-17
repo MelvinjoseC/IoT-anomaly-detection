@@ -10,6 +10,14 @@ resource "aws_iot_topic_rule" "sensor_anomaly_rule" {
   lambda {
     function_arn = aws_lambda_function.iot_anomaly_detector.arn
   }
+
+  error_action {
+    sqs {
+      queue_url  = aws_sqs_queue.iot_dlq.url
+      role_arn   = aws_iam_role.iot_error_role.arn
+      use_base64 = false
+    }
+  }
 }
 
 resource "aws_lambda_permission" "allow_iot_core" {

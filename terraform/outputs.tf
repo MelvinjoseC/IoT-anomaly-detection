@@ -21,3 +21,14 @@ output "lambda_arn" {
   value       = aws_lambda_function.iot_anomaly_detector.arn
   description = "The ARN of the Lambda function"
 }
+
+output "sqs_dlq_arn" {
+  value       = aws_sqs_queue.iot_dlq.arn
+  description = "The ARN of the Dead-Letter SQS Queue for failed IoT processing"
+}
+
+output "sqs_dlq_url" {
+  value       = aws_sqs_queue.iot_dlq.url
+  description = "The URL of the Dead-Letter SQS Queue for failed IoT processing"
+}
+
