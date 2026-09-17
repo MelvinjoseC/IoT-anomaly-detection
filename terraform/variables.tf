@@ -42,3 +42,39 @@ variable "extra_tags" {
   description = "Extra tags to add to all resources"
   default     = {}
 }
+
+variable "threshold_temp_min" {
+  type        = number
+  description = "Minimum temperature threshold in Celsius"
+  default     = 10.0
+}
+
+variable "threshold_temp_max" {
+  type        = number
+  description = "Maximum temperature threshold in Celsius"
+  default     = 40.0
+}
+
+variable "threshold_humi_min" {
+  type        = number
+  description = "Minimum humidity threshold in percentage"
+  default     = 15.0
+}
+
+variable "threshold_humi_max" {
+  type        = number
+  description = "Maximum humidity threshold in percentage"
+  default     = 90.0
+}
+
+variable "threshold_press_min" {
+  type        = number
+  description = "Minimum atmospheric pressure threshold in hPa"
+  default     = 950.0
+}
+
+variable "threshold_press_max" {
+  type        = number
+  description = "Maximum atmospheric pressure threshold in hPa"
+  default     = 1080.0
+}
