@@ -78,3 +78,15 @@ variable "threshold_press_max" {
   description = "Maximum atmospheric pressure threshold in hPa"
   default     = 1080.0
 }
+
+variable "log_retention_days" {
+  type        = number
+  description = "CloudWatch log retention in days"
+  default     = 30
+
+  validation {
+    condition     = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653], var.log_retention_days)
+    error_message = "The log_retention_days variable must be a valid CloudWatch retention period (e.g. 7, 14, 30, 90)."
+  }
+}
+
