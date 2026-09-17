@@ -21,7 +21,8 @@ import signal
 import paho.mqtt.client as mqtt
 from config import (
     AWS_IOT_ENDPOINT, MQTT_TOPIC, DEVICE_NAME,
-    ROOT_CA, CERT_FILE, KEY_FILE, SEND_INTERVAL
+    ROOT_CA, CERT_FILE, KEY_FILE, SEND_INTERVAL,
+    MOCK_MODE, MAX_ITERATIONS, ANOMALY_RATE_PERCENT
 )
 
 # Setup logging
@@ -71,8 +72,13 @@ def read_sensors():
         humidity    = round(random.uniform(40, 75), 2)
         pressure    = round(random.uniform(1000, 1025), 2)
 
-    # ── Inject anomaly every ~10 readings ─────────
-    if tick % 10 == 0:
+    # ── Inject anomaly based on configured rate ────
+    if ANOMALY_RATE_PERCENT == 10:
+        inject = (tick % 10 == 0)
+    else:
+        inject = (random.randint(1, 100) <= ANOMALY_RATE_PERCENT) if ANOMALY_RATE_PERCENT > 0 else False
+
+    if inject:
         anomaly_type = random.choice(["high_temp", "low_humi", "high_press"])
         if anomaly_type == "high_temp":
             temperature = round(random.uniform(42, 50), 2)
@@ -95,6 +101,30 @@ def read_sensors():
         "status"     : "ok"
     }
 
+# ── Mock MQTT Client ──────────────────────────────
+class MockMqttClient:
+    """Mock MQTT Client for local testing and offline simulation without TLS certificates."""
+    def __init__(self, client_id):
+        self.client_id = client_id
+
+    def tls_set(self, *args, **kwargs):
+        pass
+
+    def connect(self, host, port=8883, keepalive=60):
+        logger.info(f"[MOCK MQTT] Successfully connected to {host}:{port} (offline mock mode)")
+
+    def loop_start(self):
+        pass
+
+    def loop_stop(self):
+        pass
+
+    def publish(self, topic, payload, qos=1):
+        logger.info(f"[MOCK MQTT] Published payload to '{topic}' (QoS {qos}): {payload}")
+
+    def disconnect(self):
+        logger.info("[MOCK MQTT] Disconnected cleanly")
+
 # ── MQTT Callbacks ────────────────────────────────
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
@@ -107,6 +137,10 @@ def on_disconnect(client, userdata, rc):
 
 # ── Setup MQTT ────────────────────────────────────
 def setup_mqtt():
+    if MOCK_MODE:
+        logger.info("Initializing Mock MQTT Client (MOCK_MODE=True)")
+        return MockMqttClient(client_id=DEVICE_NAME)
+
     client = mqtt.Client(client_id=DEVICE_NAME)
     client.on_connect    = on_connect
     client.on_disconnect = on_disconnect
@@ -132,7 +166,10 @@ def shutdown_handler(signum, frame):
 def main():
     logger.info("IoT Anomaly Detection Publisher Starting...")
     logger.info(f"Device: {DEVICE_NAME} | Endpoint: {AWS_IOT_ENDPOINT} | Topic: {MQTT_TOPIC}")
-    logger.info(f"Mode: {'Real Sensor' if USE_REAL_SENSOR else 'Simulation'} | Send Interval: {SEND_INTERVAL}s")
+    logger.info(
+        f"Mode: {'Real Sensor' if USE_REAL_SENSOR else 'Simulation'} "
+        f"({'Mock MQTT' if MOCK_MODE else 'AWS IoT TLS'}) | Send Interval: {SEND_INTERVAL}s"
+    )
 
     # Register signals for container-friendly lifecycle management
     signal.signal(signal.SIGINT, shutdown_handler)
@@ -146,7 +183,9 @@ def main():
         client.connect(AWS_IOT_ENDPOINT, port=8883, keepalive=60)
         client.loop_start()
 
+        iteration = 0
         while running:
+            iteration += 1
             data = read_sensors()
             if data is None:
                 logger.warning("Sensor read failed, skipping this interval...")
@@ -157,9 +196,13 @@ def main():
             client.publish(MQTT_TOPIC, payload_json, qos=1)
 
             logger.info(
-                f"Published telemetry: Temp={data['temperature']}°C, "
+                f"Published telemetry [{iteration}]: Temp={data['temperature']}°C, "
                 f"Humi={data['humidity']}%, Press={data['pressure']} hPa"
             )
+
+            if MAX_ITERATIONS > 0 and iteration >= MAX_ITERATIONS:
+                logger.info(f"Reached maximum iterations ({MAX_ITERATIONS}). Terminating simulation cleanly.")
+                break
 
             # Sleep in small increments to respond quickly to shutdown signals
             for _ in range(SEND_INTERVAL):

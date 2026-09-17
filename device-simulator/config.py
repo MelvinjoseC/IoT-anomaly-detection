@@ -28,6 +28,12 @@ HUMI_MAX  = float(os.environ.get("THRESHOLD_HUMI_MAX", "90.0"))    # %
 PRESS_MIN = float(os.environ.get("THRESHOLD_PRESS_MIN", "950.0"))   # hPa
 PRESS_MAX = float(os.environ.get("THRESHOLD_PRESS_MAX", "1080.0"))  # hPa
 
+# Operational mode & simulation controls
+MOCK_MODE             = os.environ.get("MOCK_MODE", "false").lower() in ("true", "1", "yes")
+MAX_ITERATIONS        = int(os.environ.get("MAX_ITERATIONS", "0")) # 0 = infinite
+ANOMALY_RATE_PERCENT  = int(os.environ.get("ANOMALY_RATE_PERCENT", "10"))
+
 # AWS Resources
 DYNAMODB_TABLE = os.environ.get("DYNAMODB_TABLE", "SensorReadings")
 SNS_TOPIC_ARN  = os.environ.get("SNS_TOPIC_ARN", "arn:aws:sns:us-east-1:YOUR_ACCOUNT_ID:SensorAnomalyAlerts")
+
