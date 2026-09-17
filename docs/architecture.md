@@ -3,59 +3,45 @@
 ## Data Flow
 
 ```
-┌──────────────────────────┐
-│  ESP32 / Raspberry Pi     │
-│                           │
-│  Reads every 5 seconds:   │
-│  • Temperature (°C)       │
-│  • Humidity (%)           │
-│  • Pressure (hPa)         │
-└────────────┬─────────────┘
-             │ MQTT over TLS
-             │ Topic: sensors/environment
-             ▼
-┌──────────────────────────┐
-│  AWS IoT Core             │
-│  • X.509 auth             │
-│  • IoT Rule fires         │
-│    on every message       │
-└────────────┬─────────────┘
-             │ Invoke Lambda directly
-             ▼
-┌──────────────────────────┐
-│  AWS Lambda               │
-│  IoTAnomalyDetector       │
-│                           │
-│  For each reading:        │
-│  1. Validate fields       │
-│  2. Check thresholds:     │
-│     Temp: 10–40°C         │
-│     Humi: 15–90%          │
-│     Pres: 950–1080 hPa    │
-│  3. If anomaly → SNS      │
-│  4. Always → DynamoDB     │
-└──────┬──────────┬────────┘
-       │          │
-       │ anomaly  │ always
-       ▼          ▼
-┌──────────┐  ┌──────────────────┐
-│ AWS SNS  │  │  AWS DynamoDB     │
-│          │  │  SensorReadings   │
-│ Sends:   │  │                   │
-│ 📧 Email │  │  Stores:          │
-│ 📱 SMS   │  │  • All readings   │
-└──────────┘  │  • is_anomaly flag│
-              │  • anomaly_types  │
-              │  • alert_sent     │
-              └──────────────────┘
-
-     ↕ monitors
-┌──────────────────────────┐
-│  AWS CloudWatch           │
-│  • Lambda error rate      │
-│  • Invocation count       │
-│  • Alarm if errors > 5    │
-└──────────────────────────┘
+┌──────────────────────────────────────┐
+│  ESP32 / Raspberry Pi / Simulator    │
+│  (Dockerized Non-root / Mock Mode)   │
+│  Reads: Temp, Humidity, Pressure     │
+└──────────────────┬───────────────────┘
+                   │ MQTT over TLS (Port 8883)
+                   │ Topic: sensors/environment
+                   ▼
+┌──────────────────────────────────────┐
+│  AWS IoT Core                        │
+│  • X.509 mutual auth                 │
+│  • Topic Rule: sensors/environment   │
+└─────────┬──────────────────┬─────────┘
+          │ Invoke           │ Error / Throttle Action
+          ▼                  ▼
+┌──────────────────┐  ┌──────────────────────────────────────┐
+│   AWS Lambda     │  │  AWS SQS Dead-Letter Queue (DLQ)     │
+│  (IoTAnomaly-    │  │  • 14-day encrypted retention        │
+│   Detector)      │  │  • Alarm on visible messages         │
+│  • X-Ray Tracing │  └──────────────────┬───────────────────┘
+│  • JSON logging  │                     ▲
+└─┬──────────────┬─┘                     │ Asynchronous Redrive
+  │              │                       │
+  │ Anomaly      │ Always (All Data)     │
+  ▼              ▼                       │
+┌──────────────┐ ┌─────────────────────────┴────────┐
+│   AWS SNS    │ │  AWS DynamoDB (SensorReadings)    │
+│  • Encrypted │ │  • PK: device_id, SK: timestamp  │
+│  • Email/SMS │ │  • GSI: AnomalyIndex             │
+│    alerts    │ │  • TTL Auto-cleanup (30 Days)     │
+└──────────────┘ └───────────────────────────────────┘
+       ▲                          ▲
+       │                          │
+┌──────┴──────────────────────────┴─────────────────┐
+│  Centralized Observability & Reliability           │
+│  • CloudWatch Operational Dashboard as Code       │
+│  • Metric Alarms: Errors, Throttles, Latency, DLQ  │
+│  • AWS X-Ray Distributed End-to-End Tracing       │
+└───────────────────────────────────────────────────┘
 ```
 
 ## Anomaly Detection Logic

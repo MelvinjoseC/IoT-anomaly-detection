@@ -12,20 +12,22 @@ The system processes IoT data streams via:
 
 ---
 
-## 📊 2. Monitoring & Alerting Recommendations
+## 📊 2. Monitoring & Alerting Infrastructure
 
-### Recommended CloudWatch Dashboard Layout
-We recommend setting up a central CloudWatch Dashboard containing the following metrics:
-- **Lambda Function**:
-  - `Invocations` (Sum, 1m period)
-  - `Errors` (Sum, 1m period) — Trigger alarm if > 0.
-  - `Duration` (p95, p99, 1m period)
-- **DynamoDB**:
-  - `WriteThrottleEvents` (Sum, 5m period)
-  - `ConsumedWriteCapacityUnits` (Average, 5m period)
-- **AWS IoT Core**:
-  - `Connect.Success` / `Connect.AuthError` (Sum)
-  - `PublishIn.Success` / `PublishIn.Failure` (Sum)
+### Centralized CloudWatch Dashboard as Code
+A centralized CloudWatch Dashboard (`IoT-Anomaly-Detection-<env>`) is provisioned automatically via Terraform (`dashboard.tf`). It provides real-time visualization of:
+- **Lambda Metrics**: Invocations vs Errors (Sum, 1m), Latency percentiles (p50, p90, p99), and Invocations Throttles.
+- **DynamoDB Metrics**: Consumed Read and Write Capacity Units.
+- **SQS DLQ Depth**: `ApproximateNumberOfMessagesVisible` alerting to any backlog of failed messages.
+- **Embedded CloudWatch Logs Insights**: Live stream of warning and error events.
+
+### CloudWatch Metric Alarms
+| Alarm Name | Metric | Threshold | Action |
+|---|---|---|---|
+| `AnomalyLambdaErrors` | `Errors` | Sum > 5 in 5m | SNS Alert |
+| `AnomalyLambdaThrottles` | `Throttles` | Sum > 0 in 1m | SNS Alert |
+| `AnomalyLambdaHighDuration`| `Duration` (p95) | > 10,000 ms in 5m | SNS Alert |
+| `AnomalyDLQMessagesVisible`| `ApproximateNumberOfMessagesVisible` | Sum > 0 in 1m | SNS Alert |
 
 ### CloudWatch Logs Insights Queries
 To investigate issues, use these CloudWatch Logs Insights queries on the `/aws/lambda/IoTAnomalyDetector` log group:
@@ -46,15 +48,47 @@ To investigate issues, use these CloudWatch Logs Insights queries on the `/aws/l
   | limit 20
   ```
 
+### DynamoDB Global Secondary Index (GSI) Query
+Query recent anomalies chronologically across all IoT devices without performing costly table scans:
+```bash
+aws dynamodb query \
+  --table-name SensorReadings \
+  --index-name AnomalyIndex \
+  --key-condition-expression "is_anomaly_idx = :anomaly_val" \
+  --expression-attribute-values '{":anomaly_val": {"S": "TRUE"}}' \
+  --scan-index-forward false \
+  --limit 25
+```
+
 ---
 
 ## 🚨 3. Incident Response Playbook
+
+### Incident: Dead-Letter Queue (DLQ) Backlog Alert (`AnomalyDLQMessagesVisible`)
+* **Symptom**: CloudWatch alarm indicates messages are landing in `iot-anomaly-dead-letter-queue`.
+* **Impact**: Unhandled telemetry or Lambda invocations failed to complete normally.
+* **Troubleshooting Steps**:
+  1. Inspect the DLQ message contents using AWS CLI:
+     ```bash
+     QUEUE_URL=$(aws sqs get-queue-url --queue-name iot-anomaly-dead-letter-queue --query 'QueueUrl' --output text)
+     aws sqs receive-message --queue-url "$QUEUE_URL" --max-number-of-messages 5 --attribute-names All
+     ```
+  2. Check if messages were redirected from IoT Topic Rule `error_action` or Lambda asynchronous retry failure.
+  3. Resolve root cause (e.g. Lambda bug, DynamoDB capacity, AWS service outage).
+  4. Redrive DLQ messages back to Lambda or the ingest topic using AWS SQS Dead-Letter Queue Redrive.
+
+### Incident: Lambda Throttling (`AnomalyLambdaThrottles`)
+* **Symptom**: `AnomalyLambdaThrottles` alarm fires.
+* **Troubleshooting Steps**:
+  1. Check account-level Lambda unreserved concurrency limits.
+  2. If multiple Lambdas are running concurrently in the region, check concurrency distribution.
+  3. Increase account concurrency limit via AWS Support or configure provisioned concurrency if required.
 
 ### Incident: Alert Emails/SMS Not Being Received
 * **Symptom**: Sensor telemetry indicates anomalies, DynamoDB shows `is_anomaly = true` and `alert_sent = true`, but no alert email/SMS is received.
 * **Troubleshooting Steps**:
   1. Check if the email address is confirmed. The SNS Subscription status must be `Confirmed` in the AWS console, not `PendingConfirmation`.
-  2. Verify that the SNS Topic encryption (KMS) is properly configured and the Lambda execution role has the required `kms:GenerateDataKey` and `kms:Decrypt` privileges (if using a custom key; if using the default `alias/aws/sns` AWS key, ensure IAM is using standard paths).
+  2. Verify that the SNS Topic encryption (KMS) is properly configured and the Lambda execution role has the required permissions.
   3. Inspect CloudWatch logs for SNS publication errors:
      ```sql
      filter message like /SNS/
@@ -74,7 +108,7 @@ To investigate issues, use these CloudWatch Logs Insights queries on the `/aws/l
   1. Check network configuration (Outbound port 8883 must be open).
   2. Verify the endpoint name `AWS_IOT_ENDPOINT` in `config.py` matches your IoT Core Endpoint address.
   3. Validate certs directory and file names. Ensure `AmazonRootCA1.pem`, `device-certificate.pem.crt`, and `private.pem.key` are present and correct.
-  4. Check if the IoT policy in AWS IoT Core has been attached to the certificate.
+  4. Alternatively, use `MOCK_MODE=true` to test simulation locally without TLS certificates.
 
 ---
 
