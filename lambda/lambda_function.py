@@ -14,7 +14,7 @@ import json
 import os
 import boto3
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 # ── Logging ───────────────────────────────────────
@@ -24,7 +24,7 @@ logger.setLevel(logging.INFO)
 def log_event(level, message, **kwargs):
     """Structured JSON logger helper."""
     log_data = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "level": level,
         "message": message,
         **kwargs
@@ -173,12 +173,12 @@ def store_reading(data, anomalies, alert_sent):
         "is_anomaly" : len(anomalies) > 0,
         "anomaly_types": [a["type"] for a in anomalies],
         "alert_sent" : alert_sent,
-        "stored_at"  : datetime.utcnow().isoformat() + "Z"
+        "stored_at"  : datetime.now(timezone.utc).isoformat()
     }
     
     # Calculate TTL (30 days from now)
     try:
-        epoch_now = int(datetime.utcnow().timestamp())
+        epoch_now = int(datetime.now(timezone.utc).timestamp())
         item["ttl"] = epoch_now + (30 * 24 * 60 * 60)
     except Exception as e:
         log_event("ERROR", "Failed to calculate TTL", error=str(e))

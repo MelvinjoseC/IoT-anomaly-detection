@@ -86,7 +86,7 @@ def read_sensors():
 
     return {
         "device_id"  : DEVICE_NAME,
-        "timestamp"  : datetime.datetime.utcnow().isoformat() + "Z",
+        "timestamp"  : datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "temperature": temperature,
         "humidity"   : humidity,
         "pressure"   : pressure,
