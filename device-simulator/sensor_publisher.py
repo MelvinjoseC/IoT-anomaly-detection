@@ -20,16 +20,23 @@ import logging
 import signal
 import paho.mqtt.client as mqtt
 from config import (
-    AWS_IOT_ENDPOINT, MQTT_TOPIC, DEVICE_NAME,
-    ROOT_CA, CERT_FILE, KEY_FILE, SEND_INTERVAL,
-    MOCK_MODE, MAX_ITERATIONS, ANOMALY_RATE_PERCENT
+    AWS_IOT_ENDPOINT,
+    MQTT_TOPIC,
+    DEVICE_NAME,
+    ROOT_CA,
+    CERT_FILE,
+    KEY_FILE,
+    SEND_INTERVAL,
+    MOCK_MODE,
+    MAX_ITERATIONS,
+    ANOMALY_RATE_PERCENT,
 )
 
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler()]
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger("SensorPublisher")
 
@@ -39,7 +46,8 @@ USE_REAL_SENSOR = False
 if USE_REAL_SENSOR:
     try:
         import Adafruit_DHT
-        SENSOR     = Adafruit_DHT.DHT22
+
+        SENSOR = Adafruit_DHT.DHT22
         SENSOR_PIN = 17
     except ImportError:
         logger.error("Adafruit_DHT library not found. Falling back to simulation.")
@@ -47,6 +55,7 @@ if USE_REAL_SENSOR:
 
 # Global running state
 running = True
+
 
 # ── Sensor reading ────────────────────────────────
 def read_sensors():
@@ -69,14 +78,18 @@ def read_sensors():
     else:
         # ── Simulate normal readings ──────────────
         temperature = round(random.uniform(20, 32), 2)
-        humidity    = round(random.uniform(40, 75), 2)
-        pressure    = round(random.uniform(1000, 1025), 2)
+        humidity = round(random.uniform(40, 75), 2)
+        pressure = round(random.uniform(1000, 1025), 2)
 
     # ── Inject anomaly based on configured rate ────
     if ANOMALY_RATE_PERCENT == 10:
-        inject = (tick % 10 == 0)
+        inject = tick % 10 == 0
     else:
-        inject = (random.randint(1, 100) <= ANOMALY_RATE_PERCENT) if ANOMALY_RATE_PERCENT > 0 else False
+        inject = (
+            (random.randint(1, 100) <= ANOMALY_RATE_PERCENT)
+            if ANOMALY_RATE_PERCENT > 0
+            else False
+        )
 
     if inject:
         anomaly_type = random.choice(["high_temp", "low_humi", "high_press"])
@@ -91,19 +104,21 @@ def read_sensors():
             logger.warning("[ANOMALY INJECTED] High pressure!")
 
     return {
-        "device_id"  : DEVICE_NAME,
-        "timestamp"  : datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "device_id": DEVICE_NAME,
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "temperature": temperature,
-        "humidity"   : humidity,
-        "pressure"   : pressure,
-        "unit_temp"  : "Celsius",
-        "unit_press" : "hPa",
-        "status"     : "ok"
+        "humidity": humidity,
+        "pressure": pressure,
+        "unit_temp": "Celsius",
+        "unit_press": "hPa",
+        "status": "ok",
     }
+
 
 # ── Mock MQTT Client ──────────────────────────────
 class MockMqttClient:
     """Mock MQTT Client for local testing and offline simulation without TLS certificates."""
+
     def __init__(self, client_id):
         self.client_id = client_id
 
@@ -111,7 +126,9 @@ class MockMqttClient:
         pass
 
     def connect(self, host, port=8883, keepalive=60):
-        logger.info(f"[MOCK MQTT] Successfully connected to {host}:{port} (offline mock mode)")
+        logger.info(
+            f"[MOCK MQTT] Successfully connected to {host}:{port} (offline mock mode)"
+        )
 
     def loop_start(self):
         pass
@@ -120,10 +137,13 @@ class MockMqttClient:
         pass
 
     def publish(self, topic, payload, qos=1):
-        logger.info(f"[MOCK MQTT] Published payload to '{topic}' (QoS {qos}): {payload}")
+        logger.info(
+            f"[MOCK MQTT] Published payload to '{topic}' (QoS {qos}): {payload}"
+        )
 
     def disconnect(self):
         logger.info("[MOCK MQTT] Disconnected cleanly")
+
 
 # ── MQTT Callbacks ────────────────────────────────
 def on_connect(client, userdata, flags, rc):
@@ -132,8 +152,10 @@ def on_connect(client, userdata, flags, rc):
     else:
         logger.error(f"Connection failed. Return code: {rc}")
 
+
 def on_disconnect(client, userdata, rc):
     logger.warning(f"Disconnected from AWS IoT Core (rc={rc})")
+
 
 # ── Setup MQTT ────────────────────────────────────
 def setup_mqtt():
@@ -142,19 +164,20 @@ def setup_mqtt():
         return MockMqttClient(client_id=DEVICE_NAME)
 
     client = mqtt.Client(client_id=DEVICE_NAME)
-    client.on_connect    = on_connect
+    client.on_connect = on_connect
     client.on_disconnect = on_disconnect
-    
+
     try:
         client.tls_set(
-            ca_certs    = ROOT_CA,
-            certfile    = CERT_FILE,
-            keyfile     = KEY_FILE,
-            tls_version = ssl.PROTOCOL_TLSv1_2
+            ca_certs=ROOT_CA,
+            certfile=CERT_FILE,
+            keyfile=KEY_FILE,
+            tls_version=ssl.PROTOCOL_TLSv1_2,
         )
     except FileNotFoundError as e:
         logger.error(f"Certificate files not found: {e}. Secure connection might fail.")
     return client
+
 
 # ── Graceful Shutdown Handler ────────────────────
 def shutdown_handler(signum, frame):
@@ -162,10 +185,13 @@ def shutdown_handler(signum, frame):
     logger.info(f"Signal {signum} received. Stopping sensor publisher...")
     running = False
 
+
 # ── Main ──────────────────────────────────────────
 def main():
     logger.info("IoT Anomaly Detection Publisher Starting...")
-    logger.info(f"Device: {DEVICE_NAME} | Endpoint: {AWS_IOT_ENDPOINT} | Topic: {MQTT_TOPIC}")
+    logger.info(
+        f"Device: {DEVICE_NAME} | Endpoint: {AWS_IOT_ENDPOINT} | Topic: {MQTT_TOPIC}"
+    )
     logger.info(
         f"Mode: {'Real Sensor' if USE_REAL_SENSOR else 'Simulation'} "
         f"({'Mock MQTT' if MOCK_MODE else 'AWS IoT TLS'}) | Send Interval: {SEND_INTERVAL}s"
@@ -201,7 +227,9 @@ def main():
             )
 
             if MAX_ITERATIONS > 0 and iteration >= MAX_ITERATIONS:
-                logger.info(f"Reached maximum iterations ({MAX_ITERATIONS}). Terminating simulation cleanly.")
+                logger.info(
+                    f"Reached maximum iterations ({MAX_ITERATIONS}). Terminating simulation cleanly."
+                )
                 break
 
             # Sleep in small increments to respond quickly to shutdown signals
@@ -217,6 +245,7 @@ def main():
         client.loop_stop()
         client.disconnect()
         logger.info("Publisher stopped cleanly.")
+
 
 if __name__ == "__main__":
     main()

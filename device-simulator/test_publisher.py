@@ -6,8 +6,9 @@ from unittest.mock import MagicMock, patch
 # Add device-simulator to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-import sensor_publisher
-import config
+import sensor_publisher  # noqa: E402
+import config  # noqa: E402
+
 
 class TestSensorPublisher(unittest.TestCase):
     def setUp(self):
@@ -38,24 +39,24 @@ class TestSensorPublisher(unittest.TestCase):
         # The 10th call should trigger an anomaly
         for _ in range(9):
             sensor_publisher.read_sensors()
-        
+
         # 10th tick
         data = sensor_publisher.read_sensors()
         # It should be one of the anomalies
         temp = data["temperature"]
         humi = data["humidity"]
         press = data["pressure"]
-        
+
         # Assert that at least one is in the anomaly range
         is_anomaly = (42 <= temp <= 50) or (5 <= humi <= 12) or (1085 <= press <= 1100)
         self.assertTrue(is_anomaly)
 
-    @patch('sensor_publisher.mqtt.Client')
+    @patch("sensor_publisher.mqtt.Client")
     def test_setup_mqtt(self, mock_mqtt):
         sensor_publisher.MOCK_MODE = False
         mock_client = MagicMock()
         mock_mqtt.return_value = mock_client
-        
+
         client = sensor_publisher.setup_mqtt()
         self.assertEqual(client, mock_client)
         mock_client.tls_set.assert_called_once()
@@ -108,6 +109,7 @@ class TestSensorPublisher(unittest.TestCase):
         sensor_publisher.running = True
         sensor_publisher.main()
         self.assertFalse(sensor_publisher.MOCK_MODE is None)
+
 
 if __name__ == "__main__":
     unittest.main()

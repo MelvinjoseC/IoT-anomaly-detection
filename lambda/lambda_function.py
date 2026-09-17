@@ -20,6 +20,7 @@ from decimal import Decimal
 # Optional AWS X-Ray SDK integration
 try:
     from aws_xray_sdk.core import patch_all
+
     patch_all()
 except ImportError:
     pass
@@ -28,38 +29,45 @@ except ImportError:
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+
 def log_event(level, message, **kwargs):
     """Structured JSON logger helper."""
     log_data = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "level": level,
         "message": message,
-        **kwargs
+        **kwargs,
     }
     logger.log(getattr(logging, level.upper(), logging.INFO), json.dumps(log_data))
 
+
 # ── AWS Clients ───────────────────────────────────
-AWS_REGION     = os.environ.get("AWS_REGION", "us-east-1")
+AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 DYNAMODB_TABLE = os.environ.get("DYNAMODB_TABLE", "SensorReadings")
-SNS_TOPIC_ARN  = os.environ.get("SNS_TOPIC_ARN", "arn:aws:sns:us-east-1:YOUR_ACCOUNT_ID:SensorAnomalyAlerts")
+SNS_TOPIC_ARN = os.environ.get(
+    "SNS_TOPIC_ARN", "arn:aws:sns:us-east-1:YOUR_ACCOUNT_ID:SensorAnomalyAlerts"
+)
 
 # Lazy load boto3 clients to allow easier unit mocking/testing
 dynamodb = None
-sns      = None
-table    = None
+sns = None
+table = None
+
 
 def get_db_table():
     global dynamodb, table
     if table is None:
         dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
-        table    = dynamodb.Table(DYNAMODB_TABLE)
+        table = dynamodb.Table(DYNAMODB_TABLE)
     return table
+
 
 def get_sns_client():
     global sns
     if sns is None:
         sns = boto3.client("sns", region_name=AWS_REGION)
     return sns
+
 
 # ── Anomaly Thresholds ────────────────────────────
 def get_thresholds():
@@ -68,19 +76,20 @@ def get_thresholds():
         "temperature": {
             "min": float(os.environ.get("THRESHOLD_TEMP_MIN", "10.0")),
             "max": float(os.environ.get("THRESHOLD_TEMP_MAX", "40.0")),
-            "unit": "°C"
+            "unit": "°C",
         },
         "humidity": {
             "min": float(os.environ.get("THRESHOLD_HUMI_MIN", "15.0")),
             "max": float(os.environ.get("THRESHOLD_HUMI_MAX", "90.0")),
-            "unit": "%"
+            "unit": "%",
         },
         "pressure": {
             "min": float(os.environ.get("THRESHOLD_PRESS_MIN", "950.0")),
             "max": float(os.environ.get("THRESHOLD_PRESS_MAX", "1080.0")),
-            "unit": "hPa"
+            "unit": "hPa",
         },
     }
+
 
 # ── Anomaly Detection ─────────────────────────────
 def detect_anomalies(data):
@@ -102,25 +111,30 @@ def detect_anomalies(data):
             continue
 
         if value < limits["min"]:
-            anomalies.append({
-                "sensor"    : sensor,
-                "value"     : value,
-                "unit"      : limits["unit"],
-                "type"      : f"LOW_{sensor.upper()}",
-                "threshold" : limits["min"],
-                "direction" : "below minimum"
-            })
+            anomalies.append(
+                {
+                    "sensor": sensor,
+                    "value": value,
+                    "unit": limits["unit"],
+                    "type": f"LOW_{sensor.upper()}",
+                    "threshold": limits["min"],
+                    "direction": "below minimum",
+                }
+            )
         elif value > limits["max"]:
-            anomalies.append({
-                "sensor"    : sensor,
-                "value"     : value,
-                "unit"      : limits["unit"],
-                "type"      : f"HIGH_{sensor.upper()}",
-                "threshold" : limits["max"],
-                "direction" : "above maximum"
-            })
+            anomalies.append(
+                {
+                    "sensor": sensor,
+                    "value": value,
+                    "unit": limits["unit"],
+                    "type": f"HIGH_{sensor.upper()}",
+                    "threshold": limits["max"],
+                    "direction": "above maximum",
+                }
+            )
 
     return anomalies
+
 
 # ── Build SNS Alert Message ───────────────────────
 def build_alert_message(data, anomalies):
@@ -153,6 +167,7 @@ def build_alert_message(data, anomalies):
 
     return "\n".join(lines)
 
+
 # ── Send SNS Alert ────────────────────────────────
 def send_alert(data, anomalies):
     """Publish anomaly alert to SNS topic."""
@@ -161,29 +176,30 @@ def send_alert(data, anomalies):
 
     client = get_sns_client()
     response = client.publish(
-        TopicArn = SNS_TOPIC_ARN,
-        Message  = message,
-        Subject  = subject[:100]  # SNS subject max 100 chars
+        TopicArn=SNS_TOPIC_ARN,
+        Message=message,
+        Subject=subject[:100],  # SNS subject max 100 chars
     )
-    log_event("INFO", f"SNS alert sent", message_id=response['MessageId'])
+    log_event("INFO", "SNS alert sent", message_id=response["MessageId"])
     return response["MessageId"]
+
 
 # ── Store to DynamoDB ─────────────────────────────
 def store_reading(data, anomalies, alert_sent):
     """Store sensor reading with anomaly metadata."""
     item = {
-        "device_id"  : data["device_id"],
-        "timestamp"  : data["timestamp"],
+        "device_id": data["device_id"],
+        "timestamp": data["timestamp"],
         "temperature": Decimal(str(data.get("temperature", 0))),
-        "humidity"   : Decimal(str(data.get("humidity", 0))),
-        "pressure"   : Decimal(str(data.get("pressure", 0))),
-        "is_anomaly"    : len(anomalies) > 0,
+        "humidity": Decimal(str(data.get("humidity", 0))),
+        "pressure": Decimal(str(data.get("pressure", 0))),
+        "is_anomaly": len(anomalies) > 0,
         "is_anomaly_idx": "TRUE" if len(anomalies) > 0 else "FALSE",
-        "anomaly_types" : [a["type"] for a in anomalies],
-        "alert_sent"    : alert_sent,
-        "stored_at"     : datetime.now(timezone.utc).isoformat()
+        "anomaly_types": [a["type"] for a in anomalies],
+        "alert_sent": alert_sent,
+        "stored_at": datetime.now(timezone.utc).isoformat(),
     }
-    
+
     # Calculate TTL (30 days from now)
     try:
         epoch_now = int(datetime.now(timezone.utc).timestamp())
@@ -193,6 +209,7 @@ def store_reading(data, anomalies, alert_sent):
 
     db_table = get_db_table()
     db_table.put_item(Item=item)
+
 
 # ── Main Handler ──────────────────────────────────
 def lambda_handler(event, context):
@@ -212,30 +229,30 @@ def lambda_handler(event, context):
                 raise ValueError(f"Missing required field: {f}")
 
         # ── Detect anomalies ──────────────────────
-        anomalies  = detect_anomalies(event)
+        anomalies = detect_anomalies(event)
         alert_sent = False
 
         if anomalies:
             log_event(
-                "WARNING", 
-                "Anomaly detected in sensor reading", 
-                device_id=event['device_id'], 
-                anomalies=anomalies
+                "WARNING",
+                "Anomaly detected in sensor reading",
+                device_id=event["device_id"],
+                anomalies=anomalies,
             )
             send_alert(event, anomalies)
             alert_sent = True
         else:
-            log_event("INFO", "Normal reading processed", device_id=event['device_id'])
+            log_event("INFO", "Normal reading processed", device_id=event["device_id"])
 
         # ── Store to DynamoDB ─────────────────────
         store_reading(event, anomalies, alert_sent)
 
         return {
-            "statusCode"  : 200,
-            "device_id"   : event["device_id"],
-            "is_anomaly"  : len(anomalies) > 0,
+            "statusCode": 200,
+            "device_id": event["device_id"],
+            "is_anomaly": len(anomalies) > 0,
             "anomaly_count": len(anomalies),
-            "alert_sent"  : alert_sent
+            "alert_sent": alert_sent,
         }
 
     except ValueError as ve:
