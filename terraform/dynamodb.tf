@@ -14,6 +14,18 @@ resource "aws_dynamodb_table" "sensor_readings" {
     type = "S"
   }
 
+  attribute {
+    name = "is_anomaly_idx"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "AnomalyIndex"
+    hash_key        = "is_anomaly_idx"
+    range_key       = "timestamp"
+    projection_type = "ALL"
+  }
+
   point_in_time_recovery {
     enabled = true
   }

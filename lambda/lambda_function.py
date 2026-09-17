@@ -170,10 +170,11 @@ def store_reading(data, anomalies, alert_sent):
         "temperature": Decimal(str(data.get("temperature", 0))),
         "humidity"   : Decimal(str(data.get("humidity", 0))),
         "pressure"   : Decimal(str(data.get("pressure", 0))),
-        "is_anomaly" : len(anomalies) > 0,
-        "anomaly_types": [a["type"] for a in anomalies],
-        "alert_sent" : alert_sent,
-        "stored_at"  : datetime.now(timezone.utc).isoformat()
+        "is_anomaly"    : len(anomalies) > 0,
+        "is_anomaly_idx": "TRUE" if len(anomalies) > 0 else "FALSE",
+        "anomaly_types" : [a["type"] for a in anomalies],
+        "alert_sent"    : alert_sent,
+        "stored_at"     : datetime.now(timezone.utc).isoformat()
     }
     
     # Calculate TTL (30 days from now)
